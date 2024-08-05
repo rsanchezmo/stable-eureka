@@ -68,7 +68,7 @@ def evaluate_policy(
     return infos
 
 
-class RLEvalCallback(EventCallback):
+class RLTrainMetricsCallback(EventCallback):
 
     def __init__(
             self,
