@@ -2,7 +2,7 @@ from typing import Dict
 from stable_baselines3 import PPO, DQN, SAC, DDPG, TD3
 import torch
 from pathlib import Path
-from stable_eureka.rl_eval_callback import RLTrainMetricsCallback
+from stable_eureka.rl_train_eval_callback import RLTrainEvalCallback
 
 
 def get_ppo_params(env, config: Dict, log_dir: Path):
@@ -188,13 +188,13 @@ class RLTrainer:
 
         eval_freq = max(1, int(
             self._config['training']['total_timesteps'] // self._config['training']['num_envs'] / num_evals))
-        info_saver_callback = RLTrainMetricsCallback(eval_env, seed=eval_seed,
-                                             n_eval_episodes=eval_episodes,
-                                             eval_freq=eval_freq,
-                                             log_path=self._log_dir,
-                                             is_benchmark=is_benchmark,
-                                             logger=logger,
-                                             name=self._name)
+        info_saver_callback = RLTrainEvalCallback(eval_env, seed=eval_seed,
+                                                  n_eval_episodes=eval_episodes,
+                                                  eval_freq=eval_freq,
+                                                  log_path=self._log_dir,
+                                                  is_benchmark=is_benchmark,
+                                                  logger=logger,
+                                                  name=self._name)
 
         if self._pretrained_model is None:
             model = RLTrainer.AVAILABLE_ALGOS[self._config['algo']][0](**self._params)

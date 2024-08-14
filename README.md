@@ -18,6 +18,10 @@ You must install `ollama` before running the code:
 curl -fsSL https://ollama.com/install.sh | sh
 ```
 
+## General Workflow
+![Alt text](img/stable-eureka_workflow.png)
+
+
 ## Available LLMs
 ### Ollama
 You have to pull the LLMs you want to use from the ollama repository. For example, to pull the llama3 LLM:
