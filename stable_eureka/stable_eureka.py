@@ -1,13 +1,14 @@
 import copy
 import time
 from pathlib import Path
+import re
 
 import numpy as np
 import yaml
 from datetime import datetime
 import os
 import shutil
-from typing import Dict
+from typing import Dict, Union
 
 from stable_eureka.logger import get_logger, EmptyLogger
 from stable_eureka.ollama_generator import OllamaGenerator
@@ -25,13 +26,22 @@ import torch
 
 
 class StableEureka:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: Union[str, Path]):
         if not Path(config_path).exists():
             raise ValueError(f'Config file {config_path} not found')
 
-        self._config = yaml.safe_load(open(config_path, 'r'))
+        with open(config_path, 'r') as file:
+            self._config = yaml.safe_load(file)
 
         self._root_path = Path(os.getcwd())
+
+        # Modifiable attributes:
+        self.trainer = RLTrainer
+        self.evaluator = RLEvaluator
+        self.env_dir = self._root_path / 'envs' / self._config['environment']['name'] / 'env_code'
+        self.main_env_file = 'env.py'
+
+        self._prompt_files = self.env_dir / 'eureka_prompt_files'
         self._experiment_path = self._root_path / self._config['experiment']['parent'] / self._config['experiment'][
             'name']
 
@@ -50,12 +60,12 @@ class StableEureka:
 
         self._prompts = {'initial_system': read_from_file(self._root_path
                                                           / 'stable_eureka'
-                                                          / 'prompts'
+                                                          / 'model_instructions'
                                                           / 'initial_system_prompt.txt'),
 
                          'coding_instructions': read_from_file(self._root_path
                                                                / 'stable_eureka'
-                                                               / 'prompts'
+                                                               / 'model_instructions'
                                                                / 'coding_instructions_prompt.txt'),
 
                          'task_description': read_from_file(self._root_path
@@ -70,12 +80,12 @@ class StableEureka:
 
                          'reward_reflection_init': read_from_file(self._root_path
                                                                   / 'stable_eureka'
-                                                                  / 'prompts'
+                                                                  / 'model_instructions'
                                                                   / 'reward_reflection_init_prompt.txt'),
 
                          'reward_reflection_end': read_from_file(self._root_path
                                                                  / 'stable_eureka'
-                                                                 / 'prompts'
+                                                                 / 'model_instructions'
                                                                  / 'reward_reflection_end_prompt.txt'),
 
                          'reward_reflection': ''
@@ -109,6 +119,25 @@ class StableEureka:
             raise ValueError(f"Backend {self._config['eureka']['backend']} not available. "
                              f"Choose from ['ollama', 'openai']")
 
+    def _extract_step_method(self):
+        """Extracts only the step method from the main environment file."""
+        main_file_path = self.env_dir / 'env_code' / self.main_env_file
+        with open(main_file_path, 'r') as file:
+            content = file.read()
+
+        # Regular expression to find the step method
+        step_pattern = re.compile(r'def\s+step\s*\([^)]*\):.*?(?=\n\s*def|\Z)', re.DOTALL)
+        match = step_pattern.search(content)
+
+        if match:
+            step_method = match.group(0)
+            # Save the extracted step method to a file in the prompt files directory
+            step_file_path = self._prompt_files / 'step.py'
+            step_file_path.write_text(step_method)
+            print(f"Step method extracted and saved to {step_file_path}")
+        else:
+            raise ValueError(f"Could not find step method in {main_file_path}")
+
     def run(self, verbose: bool = True):
         init_run_time = time.time()
         if verbose:
@@ -138,7 +167,7 @@ class StableEureka:
                                 state_stack=self._config['rl']['training'].get('state_stack', 1),
                                 multithreaded=self._config['rl']['training'].get('multithreaded', False))
 
-            rl_trainer = RLTrainer(benchmark_env, config=self._config['rl'], log_dir=log_dir, name='benchmark')
+            rl_trainer = self.trainer(benchmark_env, config=self._config['rl'], log_dir=log_dir, name='benchmark')
 
             is_benchmark = True
             process = multiprocessing.Process(target=rl_trainer.run,
@@ -257,8 +286,9 @@ class StableEureka:
                                 # remove the .zip extension because of sb3 load method
                                 pretrained_model = str(pretrained_model).split('.zip')[0]
 
-                    rl_trainer = RLTrainer(env, config=self._config['rl'], log_dir=log_dir,
-                                           pretrained_model=pretrained_model, name=f'iteration_{iteration}_sample_{idx}')
+                    rl_trainer = self.trainer(env, config=self._config['rl'], log_dir=log_dir,
+                                               pretrained_model=pretrained_model,
+                                               name=f'iteration_{iteration}_sample_{idx}')
                     process = multiprocessing.Process(target=rl_trainer.run,
                                                       args=(eval_env,
                                                             self._config['rl']['training']['eval']['seed'],
@@ -342,7 +372,7 @@ class StableEureka:
                        state_stack=self._config['rl']['training'].get('state_stack', 1),
                        multithreaded=self._config['rl']['training'].get('multithreaded', False))
 
-        evaluator = RLEvaluator(model_path, algo=self._config['rl']['algo'])
+        evaluator = self.evaluator(model_path, algo=self._config['rl']['algo'])
         evaluator.run(env, seed=self._config['rl']['evaluation']['seed'],
                       n_episodes=self._config['rl']['evaluation']['num_episodes'],
                       logger=logger, save_gif=self._config['rl']['evaluation']['save_gif'])

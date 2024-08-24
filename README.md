@@ -21,6 +21,16 @@ curl -fsSL https://ollama.com/install.sh | sh
 ## General Workflow
 ![Alt text](img/stable-eureka_workflow.png)
 
+This is an iterative process, which:
+
+        1. For each iteration:
+           a. Generates multiple samples of reward functions using the LLM.
+           b. For each sample (a unique reward function):
+              - Creates a new environment incorporating the generated reward.
+              - Trains an RL agent on this environment.
+           c. Evaluates all samples from this iteration and selects the best performing one.
+           d. Updates the reward reflection for the next iteration based on the best sample.
+        2. After all iterations, performs a final evaluation on the overall best environment.
 
 ## Available LLMs
 ### Ollama
