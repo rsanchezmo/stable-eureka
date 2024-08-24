@@ -1,6 +1,6 @@
-from stable_eureka import StableEureka
+from stable_eureka.flexibility_wrapper import FlexibleStableEureka
 
 
 if __name__ == '__main__':
-    trainer = StableEureka(config_path='./configs/lunar_lander.yml')
+    trainer = FlexibleStableEureka(config_path='./configs/bipedal_walker.yml')
     trainer.run(verbose=True)

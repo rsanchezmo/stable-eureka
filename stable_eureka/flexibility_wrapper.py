@@ -29,29 +29,43 @@ class EurekaSignature(ABC):
 
 class FlexibleStableEureka:
     """
-    Wrapper class for StableEureka that uses properties to get and set specific attributes.
-    It checks if the attribute is modifiable and sets it on the StableEureka instance.
+    This class provides a customizable interface to the StableEureka optimization process,
+    allowing for easy modification of key components such as the trainer, evaluator,
+    environment directory, and main environment file.
+
+    :param config_path: Path to the configuration file for StableEureka.
+    :param trainer: Custom trainer class implementing the EurekaSignature interface.
+                    If None, the default StableEureka trainer will be used.
+    :param evaluator: Custom evaluator class implementing the EurekaSignature interface.
+                      If None, the default StableEureka evaluator will be used.
+    :param env_dir: Directory containing the environment files.
+                    If None, the default StableEureka environment directory will be used.
+    :param main_env_file: Name of the main environment file.
+                          If None, the default StableEureka main environment file will be used.
     """
 
     def __init__(self, config_path: Union[str, Path], trainer: Optional[EurekaSignature] = None,
                  evaluator: Optional[EurekaSignature] = None, env_dir: Optional[str] = None,
-                 main_env_file: Optional[Dict[str, Path]] = None):
+                 main_env_file: Optional[str] = None):
 
         self._config_path = Path(config_path)
         self._stable_eureka = StableEureka(config_path=self._config_path)
 
-        self._modifiable_attrs = {'trainer', 'evaluator', 'env_dir', 'main_env_file'}
+        self._modifiable_attrs = {
+            'trainer': trainer,
+            'evaluator': evaluator,
+            'env_dir': env_dir,
+            'main_env_file': main_env_file
+        }
 
-        # Set initial values
-        self.trainer = trainer
-        self.evaluator = evaluator
-        self.env_dir = env_dir
-        self.main_env_file = main_env_file
+        for attr, value in self._modifiable_attrs.items():
+            if value is not None:
+                self._set_attribute(attr, value)
 
     def _set_attribute(self, attr: str, value: Any):
         if attr in self._modifiable_attrs:
             if hasattr(self._stable_eureka, attr):
-                if attr in ['trainer', 'evaluator'] and value is not None and not isinstance(value, EurekaSignature):
+                if attr in ['trainer', 'evaluator'] and not isinstance(value, EurekaSignature):
                     raise TypeError(f"{attr.capitalize()} must be an instance of EurekaSignature")
                 setattr(self._stable_eureka, attr, value)
             else:
@@ -76,7 +90,7 @@ class FlexibleStableEureka:
         self._set_attribute('evaluator', value)
 
     @property
-    def env_dir(self) -> Optional[Path]:
+    def env_dir(self) -> Optional[str]:
         return getattr(self._stable_eureka, 'env_dir', None)
 
     @env_dir.setter
@@ -86,11 +100,11 @@ class FlexibleStableEureka:
         self._set_attribute('env_dir', value)
 
     @property
-    def main_env_file(self) -> Optional[Dict[str, Path]]:
+    def main_env_file(self) -> Optional[str]:
         return getattr(self._stable_eureka, 'main_env_file', None)
 
     @main_env_file.setter
-    def main_env_file(self, value: Optional[Dict[str, Path]]):
+    def main_env_file(self, value: Optional[str]):
         self._set_attribute('main_env_file', value)
 
     def get_attributes(self) -> Dict[str, Any]:

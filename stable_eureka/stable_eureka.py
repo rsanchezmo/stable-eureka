@@ -41,7 +41,6 @@ class StableEureka:
         self.env_dir = self._root_path / 'envs' / self._config['environment']['name'] / 'env_code'
         self.main_env_file = 'env.py'
 
-        self._prompt_files = self.env_dir / 'eureka_prompt_files'
         self._experiment_path = self._root_path / self._config['experiment']['parent'] / self._config['experiment'][
             'name']
 
@@ -57,6 +56,8 @@ class StableEureka:
         self._regex = [
             r'```python(.*?)```'
         ]
+
+        self._extract_step_method()  # extracts step method from the environment to pass as context
 
         self._prompts = {'initial_system': read_from_file(self._root_path
                                                           / 'stable_eureka'
@@ -121,7 +122,7 @@ class StableEureka:
 
     def _extract_step_method(self):
         """Extracts only the step method from the main environment file."""
-        main_file_path = self.env_dir / 'env_code' / self.main_env_file
+        main_file_path = self.env_dir / self.main_env_file
         with open(main_file_path, 'r') as file:
             content = file.read()
 
@@ -132,7 +133,7 @@ class StableEureka:
         if match:
             step_method = match.group(0)
             # Save the extracted step method to a file in the prompt files directory
-            step_file_path = self._prompt_files / 'step.py'
+            step_file_path = self._root_path / 'envs' / self._config['environment']['name'] / 'step.py'
             step_file_path.write_text(step_method)
             print(f"Step method extracted and saved to {step_file_path}")
         else:
